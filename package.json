@@ -15,7 +15,7 @@
     "build:packages:stale": "node scripts/build-packages.mjs --stale-only",
     "ui:build": "cd ui && pnpm build",
     "ui:dev": "cd ui && pnpm dev",
-    "gateway:watch": "tsx watch --no-clear-screen src/gateway/index.ts",
+    "gateway:watch": "tsx watch src/gateway/index.ts",
     "tui:dev": "tsx watch src/index.ts",
     "lint": "oxlint -c .oxlintrc.json --format stylish .",
     "check": "pnpm test && pnpm lint && pnpm dep-guard && pnpm deadcode && pnpm exec tsc --noEmit && pnpm format:check",
