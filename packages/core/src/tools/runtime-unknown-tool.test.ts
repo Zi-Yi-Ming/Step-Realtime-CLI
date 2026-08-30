@@ -1,5 +1,57 @@
 import { describe, it, expect } from "vitest";
-import { formatUnknownToolMessage } from "./runtime.js";
+import { ToolRuntime, formatUnknownToolMessage } from "./runtime.js";
+import type { ToolExecutionContext, ToolSpec } from "@step-cli/protocol";
+
+function makeSpec(name: string): ToolSpec {
+  return {
+    definition: {
+      type: "function",
+      function: {
+        name,
+        description: `${name} test tool`,
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    security: { risk: "read" },
+    parseArgs: () => ({}),
+    execute: async () => ({ ok: true, summary: "ok" }),
+  };
+}
+
+const execContext: ToolExecutionContext = {
+  workspaceRoot: "/",
+  commandTimeoutMs: 1_000,
+  commandOutputLimit: 1_000,
+};
+
+describe("ToolRuntime unknown tool errors", () => {
+  it("routes a hallucinated top-level call to its nested code-mode binding", async () => {
+    const runtime = new ToolRuntime(
+      [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
+      execContext,
+    );
+    const result = await runtime.executeTool("read_file", "{}");
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("UNKNOWN_TOOL");
+    expect(result.error?.message).toContain("Available tools: exec, wait.");
+    expect(result.error?.message).toContain(
+      "call exec and use tools.read_file(...) inside it",
+    );
+  });
+
+  it("reports unknown nested calls with the real nested tool list", async () => {
+    const runtime = new ToolRuntime(
+      [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
+      execContext,
+    );
+    const result = await runtime.executeNestedTool("readfile", "{}");
+    expect(result.ok).toBe(false);
+    expect(result.error?.message).toContain(
+      "Available nested tools: read_file.",
+    );
+    expect(result.error?.message).toContain("Did you mean 'read_file'?");
+  });
+});
 
 describe("formatUnknownToolMessage", () => {
   const codeModeTools = {
