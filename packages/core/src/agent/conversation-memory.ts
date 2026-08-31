@@ -67,6 +67,7 @@ import {
   findRepeatedIssue,
   isAlreadyCompactedToolResult,
   parseToolResult,
+  parseTruncationInfo,
 } from "./conversation-memory-tool-result.js";
 import {
   alignBoundaryToToolCallGroup,
@@ -1011,12 +1012,27 @@ export class ConversationMemory {
         continue;
       }
 
-      const digest = {
+      const parsed = parseToolResult(message.content);
+      const digest: Record<string, unknown> = {
         compacted_tool_result: true,
-        summary: extractToolSummary(message.content),
+        summary: parsed.summary,
         original_chars: message.content.length,
         tool: message.name,
       };
+
+      if (message.tool_call_id) {
+        digest.tool_call_id = message.tool_call_id;
+      }
+      if (parsed.errorCode) {
+        digest.error_code = parsed.errorCode;
+      }
+      if (parsed.primaryPath) {
+        digest.primary_path = parsed.primaryPath;
+      }
+      const truncation = parseTruncationInfo(message.content);
+      if (truncation) {
+        digest.truncation = truncation;
+      }
 
       message.content = JSON.stringify(digest);
       this.compactedToolMessages += 1;

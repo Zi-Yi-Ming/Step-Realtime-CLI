@@ -107,6 +107,26 @@ export function isAlreadyCompactedToolResult(raw: string): boolean {
   }
 }
 
+interface TruncationInfo {
+  strategy: string;
+  originalChars: number;
+  retainedChars: number;
+}
+
+export function parseTruncationInfo(raw: string): TruncationInfo | undefined {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const truncation = parsed.truncation as TruncationInfo | undefined;
+    if (!truncation || typeof truncation !== "object") {
+      return undefined;
+    }
+
+    return truncation;
+  } catch {
+    return undefined;
+  }
+}
+
 export function extractPathFromToolArguments(raw: string): string | undefined {
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
