@@ -96,7 +96,19 @@ export class CodeModeService {
     ctx: ToolExecutionContext,
     runtime: ToolRuntimeApi,
   ): Promise<ToolExecutionResult> {
-    const parsed = parseExecInput(code);
+    let parsed: ParsedExecInput;
+    try {
+      parsed = parseExecInput(code);
+    } catch (error) {
+      return {
+        ok: false,
+        summary: `Invalid exec input`,
+        error: {
+          code: "INVALID_ARGUMENTS",
+          message: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
     const cell = this.startCell(parsed, runtime);
 
     const abortCurrentCell = (): void => {
@@ -837,6 +849,13 @@ function parseExecInput(source: string): ParsedExecInput {
     );
   }
 
+  const forbidden = detectForbiddenModuleAccess(source);
+  if (forbidden) {
+    throw new Error(
+      `exec sandbox does not allow ${forbidden}. Use the provided tools interface for all file, command, and network operations.`,
+    );
+  }
+
   const firstNewline = source.indexOf("\n");
   const firstLine = firstNewline >= 0 ? source.slice(0, firstNewline) : source;
   const rest = firstNewline >= 0 ? source.slice(firstNewline + 1) : "";
@@ -1006,4 +1025,16 @@ function toSerializable(value: unknown, seen: WeakSet<object>): unknown {
   }
 
   return String(value);
+}
+
+function detectForbiddenModuleAccess(source: string): string | undefined {
+  // Dynamic import is the only viable escape hatch from the sandbox today:
+  // `await import("node:fs")` resolves Node builtins inside a vm context even
+  // though `require`/`fs` are not injected as globals. Static `import` decls
+  // already fail with "Cannot use import statement outside a module" and do
+  // not need a separate guard here.
+  if (/import\s*\(/.test(source)) {
+    return "dynamic import()";
+  }
+  return undefined;
 }

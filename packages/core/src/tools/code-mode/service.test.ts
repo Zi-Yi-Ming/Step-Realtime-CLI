@@ -1,10 +1,27 @@
 import { describe, it, expect } from "vitest";
 import {
+  CodeModeService,
   renderCellResult,
   type CellStatus,
   type NestedToolCall,
   type RunningCell,
 } from "./service.js";
+import type { CodeModeToolBinding, ToolRuntimeApi } from "@step-cli/protocol";
+
+const noopRuntime = {
+  executeTool: async () => ({ ok: false, summary: "no runtime" }),
+  executeNestedTool: async () => ({ ok: false, summary: "no runtime" }),
+  inspectTool: () => undefined,
+  listToolNames: () => [],
+  getDefinitions: () => [],
+  getCatalog: () => [],
+  searchTools: () => [],
+  getCodeModeToolBindings: () => [] as CodeModeToolBinding[],
+} satisfies ToolRuntimeApi as ToolRuntimeApi;
+
+function createRuntime(): ToolRuntimeApi {
+  return noopRuntime;
+}
 
 function makeCall(overrides?: Partial<NestedToolCall>): NestedToolCall {
   return {
@@ -117,5 +134,53 @@ describe("renderCellResult structured feedback", () => {
     expect(result.ok).toBe(false);
     expect(result.summary).toBe("Script failed");
     expect(result.content).toContain("TypeError: boom");
+  });
+});
+
+describe("dynamic import sandbox guard", () => {
+  const service = new CodeModeService();
+
+  it("rejects dynamic import() of node builtins", async () => {
+    const result = await service.execute(
+      'await import("node:fs").then(fs => fs.writeFileSync("x", "y"))',
+      {
+        workspaceRoot: "/",
+        commandTimeoutMs: 1000,
+        commandOutputLimit: 1000,
+      },
+      createRuntime(),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("INVALID_ARGUMENTS");
+    expect(result.error?.message).toContain("dynamic import()");
+    expect(result.error?.message).toContain("Use the provided tools interface");
+  });
+
+  it("rejects dynamic import() of relative paths", async () => {
+    const result = await service.execute(
+      'await import("./secret-module.js")',
+      {
+        workspaceRoot: "/",
+        commandTimeoutMs: 1000,
+        commandOutputLimit: 1000,
+      },
+      createRuntime(),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("INVALID_ARGUMENTS");
+    expect(result.error?.message).toContain("dynamic import()");
+  });
+
+  it("allows normal async/await tool usage past parseExecInput", async () => {
+    const result = await service.execute(
+      "const r = await tools.read_file({ path: 'a.txt' }); return r;",
+      {
+        workspaceRoot: "/",
+        commandTimeoutMs: 1000,
+        commandOutputLimit: 1000,
+      },
+      createRuntime(),
+    );
+    expect(result.error?.code).not.toBe("INVALID_ARGUMENTS");
   });
 });
