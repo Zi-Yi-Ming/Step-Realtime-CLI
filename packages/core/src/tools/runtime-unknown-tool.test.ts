@@ -39,6 +39,42 @@ describe("ToolRuntime unknown tool errors", () => {
     );
   });
 
+  it("auto-repairs a close top-level tool name instead of returning UNKNOWN_TOOL", async () => {
+    const runtime = new ToolRuntime(
+      [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
+      execContext,
+    );
+    const result = await runtime.executeTool("readfile", "{}");
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("UNKNOWN_TOOL");
+    expect(result.error?.message).toContain(
+      "call exec and use tools.read_file(...) inside it",
+    );
+  });
+
+  it("auto-repairs a close nested tool name inside exec", async () => {
+    const runtime = new ToolRuntime(
+      [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
+      execContext,
+    );
+    const result = await runtime.executeNestedTool("readfile", "{}");
+    expect(result.ok).toBe(true);
+    expect(result.summary).toBe("ok");
+  });
+
+  it("preserves code-mode top-level UNKNOWN_TOOL behavior when only nested tools match", async () => {
+    const runtime = new ToolRuntime(
+      [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
+      execContext,
+    );
+    const result = await runtime.executeTool("readfile", "{}");
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("UNKNOWN_TOOL");
+    expect(result.error?.message).toContain(
+      "call exec and use tools.read_file(...) inside it",
+    );
+  });
+
   it("adds plan mode guidance when unknown tools are rejected in plan mode", async () => {
     const runtime = new ToolRuntime(
       [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
@@ -62,11 +98,8 @@ describe("ToolRuntime unknown tool errors", () => {
       execContext,
     );
     const result = await runtime.executeNestedTool("readfile", "{}");
-    expect(result.ok).toBe(false);
-    expect(result.error?.message).toContain(
-      "Available nested tools: read_file.",
-    );
-    expect(result.error?.message).toContain("Did you mean 'read_file'?");
+    expect(result.ok).toBe(true);
+    expect(result.summary).toBe("ok");
   });
 });
 

@@ -314,6 +314,24 @@ export class ToolRuntime implements ToolRuntimeApi {
     });
   }
 
+  private repairTopLevelToolName(
+    name: string,
+  ): { internalName: string; spec: ToolSpec } | null {
+    const visibleNames = [...this.visibleSpecsByName.keys()];
+    const suggestion = bestToolSuggestion(name, visibleNames);
+    if (!suggestion) {
+      return null;
+    }
+
+    const entry = this.visibleSpecsByName.get(suggestion);
+    const internalName = this.visibleInternalNameByExternalName.get(suggestion);
+    if (!entry || !internalName) {
+      return null;
+    }
+
+    return { internalName, spec: entry.spec };
+  }
+
   async executeTool(
     name: string,
     rawArgs: string,
@@ -345,6 +363,20 @@ export class ToolRuntime implements ToolRuntimeApi {
 
     const rawSpec = this.nestedSpecsByName.get(name);
     if (!rawSpec) {
+      const repair = this.repairTopLevelToolName(name);
+      if (repair) {
+        return this.dispatchTool({
+          requestedName: name,
+          internalName: repair.internalName,
+          rawArgs,
+          spec: repair.spec,
+          signal: undefined,
+          bypassExecutionGate: false,
+          nested: false,
+          toolCallId: options?.toolCallId,
+        });
+      }
+
       return this.unknownToolError(name, "top-level");
     }
 
@@ -369,6 +401,30 @@ export class ToolRuntime implements ToolRuntimeApi {
       ? name
       : this.nestedInternalNameByExternalName.get(name);
     if (!internalName) {
+      const nestedTools = this.codeModeEnabled
+        ? this.getCodeModeToolBindings().map((binding) => binding.identifier)
+        : [...this.nestedSpecsByName.keys()];
+      const suggestion = bestToolSuggestion(name, nestedTools);
+      if (suggestion) {
+        const resolvedInternalName = this.nestedSpecsByName.has(suggestion)
+          ? suggestion
+          : this.nestedInternalNameByExternalName.get(suggestion);
+        const spec = this.nestedSpecsByName.get(
+          resolvedInternalName ?? suggestion,
+        );
+        if (resolvedInternalName && spec) {
+          return this.dispatchTool({
+            requestedName: name,
+            internalName: resolvedInternalName,
+            rawArgs,
+            spec,
+            signal: options?.signal,
+            bypassExecutionGate: false,
+            nested: true,
+          });
+        }
+      }
+
       return this.unknownToolError(name, "nested");
     }
 

@@ -537,6 +537,7 @@ export class AgentLoop {
             toolCall.id,
             toolName,
             formatToolResultForModel(
+              toolName,
               result,
               this.config.maxToolResultCharsInContext,
             ),
@@ -1122,10 +1123,12 @@ function createSpanId(): string {
 }
 
 function formatToolResultForModel(
+  toolName: string,
   result: ToolExecutionResult,
   maxChars: number,
 ): string {
   const verbose = {
+    toolName,
     ok: result.ok,
     summary: result.summary,
     content: result.content,
@@ -1142,6 +1145,7 @@ function formatToolResultForModel(
   const contentLimit = Math.max(256, Math.floor(maxChars * 0.55));
   const dataLimit = Math.max(256, Math.floor(maxChars * 0.25));
   const compact = {
+    toolName,
     ok: result.ok,
     summary: result.summary,
     content:
@@ -1164,6 +1168,7 @@ function formatToolResultForModel(
 
   const fallback = JSON.stringify(
     {
+      toolName,
       ok: result.ok,
       summary: shorten(
         result.summary,
