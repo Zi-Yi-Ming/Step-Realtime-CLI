@@ -443,6 +443,7 @@ export class AgentHarnessFactory {
       permissionPolicy: this.permissionPolicy,
       approvalHandler: options.approvalHandler ?? this.approvalHandler,
       presentation: this.toolPresentation,
+      planMode: this.operatingMode === "plan",
       beforeNestedToolExecution: hooks
         ? async (info) => {
             await hooks.beforeToolExecution?.(info);

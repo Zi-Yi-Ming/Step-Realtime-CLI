@@ -38,6 +38,7 @@ export interface ToolRuntimeOptions {
   permissionPolicy?: ToolPermissionPolicy;
   approvalHandler?: ToolApprovalHandler;
   presentation?: Partial<ToolPresentationConfig>;
+  planMode?: boolean;
   beforeNestedToolExecution?: (info: {
     toolName: string;
     rawArgs: string;
@@ -88,6 +89,7 @@ export class ToolRuntime implements ToolRuntimeApi {
   private readonly baseContext: ToolExecutionContext;
   private readonly executionGate = new AsyncRwGate();
   private readonly codeModeEnabled: boolean;
+  private readonly planMode: boolean;
   private baseSignal: AbortSignal | undefined;
 
   constructor(
@@ -103,6 +105,7 @@ export class ToolRuntime implements ToolRuntimeApi {
     this.approvalHandler = options?.approvalHandler;
     this.beforeNestedToolExecution = options?.beforeNestedToolExecution;
     this.afterNestedToolExecution = options?.afterNestedToolExecution;
+    this.planMode = options?.planMode ?? false;
     this.baseContext = {
       ...context,
       interaction: context.interaction
@@ -286,6 +289,7 @@ export class ToolRuntime implements ToolRuntimeApi {
       return unknownToolResult(name, {
         scope,
         availableTools: nestedTools,
+        planMode: this.planMode,
       });
     }
 
@@ -296,6 +300,7 @@ export class ToolRuntime implements ToolRuntimeApi {
         nestedToolBindings: this.getCodeModeToolBindings().map(
           (binding) => binding.identifier,
         ),
+        planMode: this.planMode,
       });
     }
 
@@ -305,6 +310,7 @@ export class ToolRuntime implements ToolRuntimeApi {
         ...this.listToolNames(),
         ...this.nestedSpecsByName.keys(),
       ],
+      planMode: this.planMode,
     });
   }
 
@@ -808,8 +814,9 @@ export function formatUnknownToolMessage(input: {
   scope: "top-level" | "nested";
   availableTools: string[];
   nestedToolBindings?: string[];
+  planMode?: boolean;
 }): string {
-  const { name, scope, nestedToolBindings } = input;
+  const { name, scope, nestedToolBindings, planMode } = input;
   const available = dedupeNames(input.availableTools).filter(
     (item) => item !== name,
   );
@@ -826,6 +833,11 @@ export function formatUnknownToolMessage(input: {
     const label =
       scope === "nested" ? "Available nested tools" : "Available tools";
     parts.push(`${label}: ${formatToolNameList(available)}`);
+  }
+  if (planMode) {
+    parts.push(
+      "This session is read-only planning mode. Do not retry this call; only inspect, analyze, and give concrete implementation guidance with the available tools.",
+    );
   }
   if (nestedSuggestion) {
     parts.push(
@@ -848,6 +860,7 @@ function unknownToolResult(
     scope: "top-level" | "nested";
     availableTools: string[];
     nestedToolBindings?: string[];
+    planMode?: boolean;
   },
 ): ToolExecutionResult {
   return {

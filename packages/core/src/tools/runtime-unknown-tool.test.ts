@@ -39,6 +39,23 @@ describe("ToolRuntime unknown tool errors", () => {
     );
   });
 
+  it("adds plan mode guidance when unknown tools are rejected in plan mode", async () => {
+    const runtime = new ToolRuntime(
+      [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
+      execContext,
+      { planMode: true },
+    );
+    const result = await runtime.executeTool("read_file", "{}");
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe("UNKNOWN_TOOL");
+    expect(result.error?.message).toContain(
+      "This session is read-only planning mode.",
+    );
+    expect(result.error?.message).toContain(
+      "only inspect, analyze, and give concrete implementation guidance",
+    );
+  });
+
   it("reports unknown nested calls with the real nested tool list", async () => {
     const runtime = new ToolRuntime(
       [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
@@ -137,5 +154,19 @@ describe("formatUnknownToolMessage", () => {
     });
     expect(message).toContain("tool_23 (+6 more).");
     expect(message).not.toContain("tool_24");
+  });
+
+  it("includes plan mode guidance when requested", () => {
+    const message = formatUnknownToolMessage({
+      name: "write_file",
+      scope: "top-level",
+      availableTools: ["read_file", "search_files"],
+      planMode: true,
+    });
+    expect(message).toContain("Tool 'write_file' is not registered.");
+    expect(message).toContain("This session is read-only planning mode.");
+    expect(message).toContain(
+      "only inspect, analyze, and give concrete implementation guidance",
+    );
   });
 });
