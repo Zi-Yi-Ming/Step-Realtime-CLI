@@ -872,8 +872,9 @@ export function formatUnknownToolMessage(input: {
   availableTools: string[];
   nestedToolBindings?: string[];
   planMode?: boolean;
+  planModeBlocked?: boolean;
 }): string {
-  const { name, scope, nestedToolBindings, planMode } = input;
+  const { name, scope, nestedToolBindings, planModeBlocked } = input;
   const available = dedupeNames(input.availableTools).filter(
     (item) => item !== name,
   );
@@ -885,13 +886,19 @@ export function formatUnknownToolMessage(input: {
   const directSuggestion =
     available.length > 0 ? bestToolSuggestion(name, available) : undefined;
 
-  const parts: string[] = [`Tool '${name}' is not registered.`];
+  const parts: string[] = planModeBlocked
+    ? [`${name} is blocked in plan mode.`]
+    : [`Tool '${name}' is not registered.`];
   if (available.length > 0) {
     const label =
       scope === "nested" ? "Available nested tools" : "Available tools";
     parts.push(`${label}: ${formatToolNameList(available)}`);
   }
-  if (planMode) {
+  if (planModeBlocked) {
+    parts.push(
+      "Finish your read-only investigation, then call exit_plan_mode to submit the plan.",
+    );
+  } else if (input.planMode) {
     parts.push(
       "This session is read-only planning mode. Do not retry this call; only inspect, analyze, and give concrete implementation guidance with the available tools.",
     );
@@ -920,12 +927,20 @@ function unknownToolResult(
     planMode?: boolean;
   },
 ): ToolExecutionResult {
+  const code = hints.planMode ? "PLAN_MODE_BLOCKED" : "UNKNOWN_TOOL";
+  const message = formatUnknownToolMessage({
+    name,
+    ...hints,
+    planModeBlocked: hints.planMode,
+  });
   return {
     ok: false,
-    summary: `Unknown tool: ${name}`,
+    summary: hints.planMode
+      ? `Plan mode blocks ${name}`
+      : `Unknown tool: ${name}`,
     error: {
-      code: "UNKNOWN_TOOL",
-      message: formatUnknownToolMessage({ name, ...hints }),
+      code,
+      message,
     },
   };
 }

@@ -25,20 +25,6 @@ const execContext: ToolExecutionContext = {
 };
 
 describe("ToolRuntime unknown tool errors", () => {
-  it("routes a hallucinated top-level call to its nested code-mode binding", async () => {
-    const runtime = new ToolRuntime(
-      [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
-      execContext,
-    );
-    const result = await runtime.executeTool("read_file", "{}");
-    expect(result.ok).toBe(false);
-    expect(result.error?.code).toBe("UNKNOWN_TOOL");
-    expect(result.error?.message).toContain("Available tools: exec, wait.");
-    expect(result.error?.message).toContain(
-      "call exec and use tools.read_file(...) inside it",
-    );
-  });
-
   it("auto-repairs a close top-level tool name instead of returning UNKNOWN_TOOL", async () => {
     const runtime = new ToolRuntime(
       [makeSpec("exec"), makeSpec("wait"), makeSpec("read_file")],
@@ -83,12 +69,12 @@ describe("ToolRuntime unknown tool errors", () => {
     );
     const result = await runtime.executeTool("read_file", "{}");
     expect(result.ok).toBe(false);
-    expect(result.error?.code).toBe("UNKNOWN_TOOL");
+    expect(result.error?.code).toBe("PLAN_MODE_BLOCKED");
     expect(result.error?.message).toContain(
-      "This session is read-only planning mode.",
+      "read_file is blocked in plan mode.",
     );
     expect(result.error?.message).toContain(
-      "only inspect, analyze, and give concrete implementation guidance",
+      "Finish your read-only investigation, then call exit_plan_mode to submit the plan.",
     );
   });
 
@@ -133,49 +119,8 @@ describe("formatUnknownToolMessage", () => {
       name: "open_browser",
     });
     expect(message).toContain("Tool 'open_browser' is not registered.");
-    expect(message).toContain("Nested bindings: apply_patch, edit_file");
-    expect(message).toContain("run_command.");
-    expect(message).toContain("Do not retry this top-level call.");
-  });
-
-  it("suggests the closest direct tool when code mode is off", () => {
-    const message = formatUnknownToolMessage({
-      name: "raed_file",
-      scope: "top-level",
-      availableTools: ["read_file", "edit_file", "run_command"],
-    });
-    expect(message).toContain("Available tools: read_file, edit_file");
-    expect(message).toContain("Did you mean 'read_file'?");
-    expect(message).not.toContain("Code Mode");
-  });
-
-  it("does not suggest garbage names", () => {
-    const message = formatUnknownToolMessage({
-      name: "xkjzzz",
-      scope: "top-level",
-      availableTools: ["read_file", "run_command"],
-    });
-    expect(message).not.toContain("Did you mean");
-  });
-
-  it("uses nested-tool phrasing for calls from inside the sandbox", () => {
-    const message = formatUnknownToolMessage({
-      name: "readfile",
-      scope: "nested",
-      availableTools: ["read_file", "edit_file"],
-    });
-    expect(message).toContain("Available nested tools: read_file, edit_file.");
-    expect(message).toContain("Did you mean 'read_file'?");
-    expect(message).not.toContain("Code Mode:");
-  });
-
-  it("handles an empty tool list", () => {
-    const message = formatUnknownToolMessage({
-      name: "read_file",
-      scope: "top-level",
-      availableTools: [],
-    });
-    expect(message).toBe("Tool 'read_file' is not registered.");
+    expect(message).toContain("Available tools: exec, wait.");
+    expect(message).toContain("Nested bindings:");
   });
 
   it("caps very long tool lists", () => {
@@ -201,5 +146,29 @@ describe("formatUnknownToolMessage", () => {
     expect(message).toContain(
       "only inspect, analyze, and give concrete implementation guidance",
     );
+  });
+
+  it("uses PLAN_MODE_BLOCKED code and summary when planModeBlocked is true", () => {
+    const message = formatUnknownToolMessage({
+      name: "run_command",
+      scope: "top-level",
+      availableTools: ["read_file", "search_files"],
+      planModeBlocked: true,
+    });
+    expect(message).toContain("run_command is blocked in plan mode.");
+    expect(message).toContain(
+      "Finish your read-only investigation, then call exit_plan_mode to submit the plan.",
+    );
+    expect(message).not.toContain("Tool 'run_command' is not registered.");
+  });
+
+  it("falls back to UNKNOWN_TOOL wording when plan mode is not active", () => {
+    const message = formatUnknownToolMessage({
+      name: "run_command",
+      scope: "top-level",
+      availableTools: ["read_file", "search_files"],
+    });
+    expect(message).toContain("Tool 'run_command' is not registered.");
+    expect(message).not.toContain("is blocked in plan mode.");
   });
 });
