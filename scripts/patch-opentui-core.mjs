@@ -8,20 +8,17 @@ const targets = [
   {
     file: "index-e89anq5x.js",
     replacements: [
-      // .scm file imports
       {
         pattern: /import\s+(\w+)\s+from\s+"(\.\/assets\/[^"]+\.scm)"\s+with\s+\{\s*type:\s*"file"\s*\};/g,
         replacement: (match, name, relPath) => {
           const resolved = path.resolve(coreDir, relPath);
-          return `import { readFileSync } from "node:fs";\nconst ${name} = readFileSync("${resolved}", "utf8");`;
+          return `const ${name} = ${JSON.stringify(resolved)};`;
         },
       },
-      // .wasm file imports
       {
         pattern: /import\s+(\w+)\s+from\s+"(\.\/assets\/[^"]+\.wasm)"\s+with\s+\{\s*type:\s*"file"\s*\};/g,
         replacement: (match, name, relPath) => {
-          const resolved = path.resolve(coreDir, relPath);
-          return `import { readFileSync } from "node:fs";\nimport { fileURLToPath } from "node:url";\nconst __dirname = path.dirname(fileURLToPath(import.meta.url));\nconst ${name} = readFileSync(path.join(__dirname, "${path.basename(relPath)}"), "buf");`;
+          return `const ${name} = path.join(__dirname, "${path.basename(relPath)}");`;
         },
       },
     ],
@@ -29,12 +26,10 @@ const targets = [
   {
     file: "index-k03avn41.js",
     replacements: [
-      // .wasm file imports
       {
         pattern: /import\s+(\w+)\s+from\s+"(\.\/lib\/[^"]+\.wasm)"\s+with\s+\{\s*type:\s*"file"\s*\};/g,
         replacement: (match, name, relPath) => {
-          const resolved = path.resolve(coreDir, relPath);
-          return `import { readFileSync } from "node:fs";\nimport { fileURLToPath } from "node:url";\nconst __dirname = path.dirname(fileURLToPath(import.meta.url));\nconst ${name} = readFileSync(path.join(__dirname, "${path.basename(relPath)}"), "buf");`;
+          return `const ${name} = path.join(__dirname, "${path.basename(relPath)}");`;
         },
       },
     ],
@@ -54,11 +49,7 @@ for (const target of targets) {
 
   let original = content;
   for (const { pattern, replacement } of target.replacements) {
-    if (typeof replacement === "function") {
-      content = content.replace(pattern, replacement);
-    } else {
-      content = content.replace(pattern, replacement);
-    }
+    content = content.replace(pattern, replacement);
   }
 
   if (content !== original) {
