@@ -163,6 +163,15 @@ async function runCommand(input: {
           // Fall back to killing the immediate shell process.
         }
       }
+
+      if (process.platform === "win32" && typeof child.pid === "number") {
+        try {
+          spawn("taskkill", ["/T", "/F", "/PID", String(child.pid)]);
+        } catch {
+          // Fall back to killing the immediate shell process.
+        }
+      }
+
       child.kill("SIGKILL");
     };
 
