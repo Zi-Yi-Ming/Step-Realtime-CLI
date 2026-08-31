@@ -11,6 +11,7 @@
     "dist",
     "licenses",
     "scripts/prepare.mjs",
+    "scripts/run-step.mjs",
     "README.md",
     "README_CN.md"
   ],
@@ -37,6 +38,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "node dist/main.js",
+    "step": "node scripts/run-step.mjs",
+    "step:fresh": "node scripts/run-step.mjs --full",
     "prepare": "node scripts/prepare.mjs",
     "prepublishOnly": "npm run build",
     "prepack": "npm run build"
