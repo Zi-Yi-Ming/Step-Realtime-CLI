@@ -5,7 +5,58 @@ import { pathToFileURL } from "node:url";
 
 const repoRoot = process.cwd();
 const scriptArgs = process.argv.slice(2);
-const bunBin = process.env.STEP_BUN_BIN || process.execPath;
+
+async function resolveBunBin() {
+  const explicit = process.env.STEP_BUN_BIN;
+  if (explicit) {
+    return explicit;
+  }
+
+  const candidates = [
+    "bun",
+    path.join(process.env.USERPROFILE ?? "", ".bun", "bin", "bun.exe"),
+    path.join(process.env.LOCALAPPDATA ?? "", "Programs", "bun", "bun.exe"),
+  ];
+
+  for (const candidate of candidates) {
+    const ok = await checkCommand(candidate);
+    if (ok) {
+      return candidate;
+    }
+  }
+
+  return process.execPath;
+}
+
+async function checkCommand(command) {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(command, ["--version"], {
+        cwd: repoRoot,
+        env: process.env,
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+    } catch {
+      resolve(false);
+      return;
+    }
+
+    let stdout = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+
+    child.once("error", () => {
+      resolve(false);
+    });
+
+    child.once("close", (code) => {
+      resolve(code === 0 && stdout.trim().length > 0);
+    });
+  });
+}
+
 const require = createRequire(import.meta.url);
 
 try {
@@ -45,11 +96,13 @@ async function main() {
   ]).catch(() => {});
 
   const entrypoint = path.join(repoRoot, "src", "index.ts");
-  if (path.basename(bunBin).startsWith("bun")) {
+  const bunBin = await resolveBunBin();
+  const isNode = bunBin === process.execPath || /(^|[/\\])node(\.exe)?$/.test(bunBin);
+  if (!isNode) {
     return runCommand(bunBin, [entrypoint, ...scriptArgs]);
   }
 
-  return runCommand(bunBin, [
+  return runCommand(process.execPath, [
     "--import",
     pathToFileURL(require.resolve("tsx")).href,
     entrypoint,
