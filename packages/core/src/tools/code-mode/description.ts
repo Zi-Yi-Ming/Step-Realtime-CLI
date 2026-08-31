@@ -106,6 +106,8 @@ export function renderCodeModeExecDescription(
     patchBinding
       ? `Use \`tools.${patchBinding.identifier}({ patch })\` for structured edits instead of shelling out to patch helpers.`
       : "Prefer structured patch/edit helpers inside `tools` for file edits when available.",
+    "Do not use Node fs APIs or shell redirection (echo >, >>) to write files inside exec — those bypass the permission system. Use the provided file-edit tool bindings instead.",
+    "If you need a write/edit tool binding and it is not listed here, use the available discovery tool to find it; do not invent tool names.",
   ];
 
   return lines.join("\n");
