@@ -40,6 +40,10 @@ async function main() {
     return buildExitCode;
   }
 
+  await runCommand(process.execPath, [
+    path.join(repoRoot, "scripts", "patch-opentui-core.mjs"),
+  ]).catch(() => {});
+
   const entrypoint = path.join(repoRoot, "src", "index.ts");
   if (path.basename(bunBin).startsWith("bun")) {
     return runCommand(bunBin, [entrypoint, ...scriptArgs]);
