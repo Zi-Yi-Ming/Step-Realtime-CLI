@@ -774,6 +774,7 @@ export interface StepCliTurnResult {
   output: string;
   steps: number;
   toolCalls: number;
+  toolErrorCodeCounts: Record<string, number>;
   run: Record<string, unknown>;
   actions: Record<string, unknown>[];
   stateTimeline: Record<string, unknown>[];

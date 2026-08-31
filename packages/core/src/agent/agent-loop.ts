@@ -158,6 +158,7 @@ export interface AgentRunResult {
   output: string;
   steps: number;
   toolCalls: number;
+  toolErrorCodeCounts: Record<string, number>;
   run: AgentRunMetadata;
   actions: AgentLoopAction[];
   stateTimeline: AgentStateSnapshot[];
@@ -198,6 +199,7 @@ export class AgentLoop {
     const stateMachine = new AgentStateMachine();
     const actions: AgentLoopAction[] = [];
     let normalizedPrompt: UserTurnInput;
+    const toolErrorCodeCounts = new Map<string, number>();
 
     try {
       normalizedPrompt = await this.runUserPromptSubmitHooks(
@@ -209,6 +211,7 @@ export class AgentLoop {
           output: error.message,
           step: 0,
           toolCalls: 0,
+          toolErrorCodeCounts,
           success: false,
           stateMachine,
           actions,
@@ -332,6 +335,7 @@ export class AgentLoop {
             output: failure,
             step,
             toolCalls: totalToolCalls,
+            toolErrorCodeCounts,
             success: false,
             stateMachine,
             actions,
@@ -355,6 +359,7 @@ export class AgentLoop {
             output: failure,
             step,
             toolCalls: totalToolCalls,
+            toolErrorCodeCounts,
             success: false,
             stateMachine,
             actions,
@@ -390,6 +395,7 @@ export class AgentLoop {
               output: failure,
               step,
               toolCalls: totalToolCalls,
+              toolErrorCodeCounts,
               success: false,
               stateMachine,
               actions,
@@ -411,6 +417,7 @@ export class AgentLoop {
             output: content,
             step,
             toolCalls: totalToolCalls,
+            toolErrorCodeCounts,
             success: true,
             stateMachine,
             actions,
@@ -448,6 +455,7 @@ export class AgentLoop {
               output: fallback,
               step,
               toolCalls: totalToolCalls,
+              toolErrorCodeCounts,
               success: false,
               stateMachine,
               actions,
@@ -518,6 +526,13 @@ export class AgentLoop {
             result,
           });
 
+          if (!result.ok && result.error?.code) {
+            toolErrorCodeCounts.set(
+              result.error.code,
+              (toolErrorCodeCounts.get(result.error.code) ?? 0) + 1,
+            );
+          }
+
           this.memory.addTool(
             toolCall.id,
             toolName,
@@ -578,6 +593,7 @@ export class AgentLoop {
         steps: this.config.maxSteps,
         step: this.config.maxSteps,
         toolCalls: totalToolCalls,
+        toolErrorCodeCounts,
         success: false,
         stateMachine,
         actions,
@@ -978,6 +994,7 @@ export class AgentLoop {
     steps?: number;
     step: number;
     toolCalls: number;
+    toolErrorCodeCounts: Map<string, number>;
     success: boolean;
     stateMachine: AgentStateMachine;
     actions: AgentLoopAction[];
@@ -1007,6 +1024,7 @@ export class AgentLoop {
       output: input.output,
       steps: input.steps ?? input.step,
       toolCalls: input.toolCalls,
+      toolErrorCodeCounts: Object.fromEntries(input.toolErrorCodeCounts),
       run: this.captureRunMetadata(),
       actions: [...input.actions],
       stateTimeline: input.stateMachine.getTimeline(),

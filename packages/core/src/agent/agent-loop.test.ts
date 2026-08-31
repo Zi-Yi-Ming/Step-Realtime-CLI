@@ -162,4 +162,87 @@ describe("AgentLoop", () => {
       expect(config.maxToolCallsPerStep).toBeGreaterThan(0);
     });
   });
+
+  describe("run — toolErrorCodeCounts", () => {
+    it("counts tool error codes in the run result", async () => {
+      const memory = new ConversationMemory(makeMemoryConfig());
+      const toolResult = {
+        ok: false,
+        summary: "Tool failed",
+        error: { code: "PERMISSION_DENIED", message: "denied" },
+      };
+      const client = {
+        createChatCompletion: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: "chatcmpl-1",
+            object: "chat.completion",
+            created: Date.now(),
+            model: "step-3.7-flash",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: "call-1",
+                      type: "function",
+                      function: { name: "read_file", arguments: "{}" },
+                    },
+                  ],
+                },
+                finish_reason: "tool_calls",
+              },
+            ],
+          })
+          .mockResolvedValueOnce({
+            id: "chatcmpl-2",
+            object: "chat.completion",
+            created: Date.now(),
+            model: "step-3.7-flash",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: "done",
+                },
+                finish_reason: "stop",
+              },
+            ],
+          }),
+      };
+
+      const loop = new AgentLoop({
+        model: "step-3.7-flash",
+        client: client as never,
+        memory,
+        tools: {
+          getDefinitions: vi.fn().mockReturnValue([
+            {
+              type: "function",
+              function: {
+                name: "read_file",
+                description: "read",
+                parameters: { type: "object", properties: {} },
+              },
+            },
+          ]),
+          executeTool: vi.fn().mockResolvedValue(toolResult),
+          inspectTool: vi.fn(),
+          getCatalog: vi.fn().mockReturnValue([]),
+          searchTools: vi.fn().mockReturnValue([]),
+          getCodeModeToolBindings: vi.fn().mockReturnValue([]),
+        } as never,
+        systemPrompt: "sys",
+        workspaceRoot: "/tmp",
+        config: makeConfig(),
+      });
+
+      const result = await loop.run("test");
+      expect(result.toolErrorCodeCounts).toEqual({ PERMISSION_DENIED: 1 });
+    });
+  });
 });

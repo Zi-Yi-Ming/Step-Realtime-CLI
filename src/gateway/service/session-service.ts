@@ -2113,6 +2113,7 @@ function toProtocolTurnResult(result: GatewayTurnResult): ProtocolTurnResult {
     output: result.output,
     steps: result.steps,
     toolCalls: result.toolCalls,
+    toolErrorCodeCounts: result.toolErrorCodeCounts,
     run: toProtocolRecord(result.run),
     actions: result.actions.map((entry) => toProtocolRecord(entry)),
     stateTimeline: result.stateTimeline.map((entry) => toProtocolRecord(entry)),

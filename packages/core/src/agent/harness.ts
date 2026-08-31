@@ -209,6 +209,10 @@ export class AgentHarness {
         output: freshAttempt.output,
         steps: firstAttempt.steps + freshAttempt.steps,
         toolCalls: firstAttempt.toolCalls + freshAttempt.toolCalls,
+        toolErrorCodeCounts: mergeToolErrorCodeCounts(
+          firstAttempt.toolErrorCodeCounts,
+          freshAttempt.toolErrorCodeCounts,
+        ),
         run: freshAttempt.run,
         actions: [
           ...firstAttempt.actions,
@@ -670,4 +674,15 @@ export function filterToolSpecsForOperatingMode(
     specs: allowed,
     hidden,
   };
+}
+
+function mergeToolErrorCodeCounts(
+  left: Record<string, number>,
+  right: Record<string, number>,
+): Record<string, number> {
+  const merged = { ...left };
+  for (const [code, count] of Object.entries(right)) {
+    merged[code] = (merged[code] ?? 0) + count;
+  }
+  return merged;
 }
