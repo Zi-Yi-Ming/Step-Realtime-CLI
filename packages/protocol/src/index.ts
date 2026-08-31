@@ -477,6 +477,7 @@ export interface ToolApprovalRequest {
   risk: ToolRiskLevel;
   /** Model-emitted tool_use id; threaded from AgentLoop so the host can correlate to event-translator state without keying on toolName. */
   toolCallId?: string;
+  inspection?: ToolCallInspection;
 }
 
 export type ToolApprovalDecision = "allow-once" | "allow-always" | "deny";

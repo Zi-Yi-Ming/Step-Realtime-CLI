@@ -1782,6 +1782,14 @@ function ApprovalInlineCard(input: {
         </span>
         <span fg={input.theme.foreground}> {input.pendingApproval.title}</span>
       </text>
+      {input.pendingApproval.commandPreview ? (
+        <text fg={input.theme.muted}>
+          {truncateInline(
+            input.pendingApproval.commandPreview,
+            Math.max(18, input.textWidth - 4),
+          )}
+        </text>
+      ) : null}
       {input.pendingApproval.options.map((option, index) => {
         const selected = index === input.pendingApproval.selectedIndex;
         const label = `[${option.hotkey}] ${option.label}`;

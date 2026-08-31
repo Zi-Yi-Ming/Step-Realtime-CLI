@@ -116,6 +116,7 @@ export interface StepCliTuiPendingApproval {
   risk: ToolRiskLevel;
   reason: string;
   rawArgsPreview: string;
+  commandPreview?: string;
   options: readonly StepCliTuiPendingApprovalOption[];
   selectedIndex: number;
 }

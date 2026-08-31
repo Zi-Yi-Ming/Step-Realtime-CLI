@@ -550,6 +550,7 @@ export class LocalOpenTuiTranscriptBridge implements StepCliTuiTranscriptControl
       request.rawArgs.length > 240
         ? `${request.rawArgs.slice(0, 237)}...`
         : request.rawArgs;
+    const commandPreview = request.inspection?.command?.trim() || undefined;
 
     return new Promise((resolve) => {
       this.pendingApproval = {
@@ -559,6 +560,7 @@ export class LocalOpenTuiTranscriptBridge implements StepCliTuiTranscriptControl
         risk: request.risk,
         reason: request.reason,
         rawArgsPreview,
+        ...(commandPreview ? { commandPreview } : {}),
         options: APPROVAL_OPTIONS,
         selectedIndex: 0,
         resolve,

@@ -530,6 +530,7 @@ export class ToolRuntime implements ToolRuntimeApi {
               reason: permission.reason,
               risk: permission.risk,
               ...(input.toolCallId ? { toolCallId: input.toolCallId } : {}),
+              inspection,
             })
           : "deny";
       }
